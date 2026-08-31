@@ -53,3 +53,65 @@ export interface Paginated<T> {
   page: number;
   pageSize: number;
 }
+
+export type CourseStatus = 'draft' | 'published' | 'archived';
+export type ContentType = 'video' | 'pdf' | 'richtext' | 'scorm';
+export type Difficulty = 'beginner' | 'intermediate' | 'advanced';
+
+export interface CourseSummary {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string | null;
+  status: CourseStatus;
+  isMandatory: boolean;
+  complianceType: string | null;
+  targetAudience: string | null;
+  difficulty: Difficulty;
+  version: number;
+  ownerId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  owner: { id: string; name: string; email: string } | null;
+  _count: { enrollments: number; content: number };
+}
+
+export interface CourseContentItem {
+  id: string;
+  courseId: string;
+  contentType: ContentType;
+  title: string;
+  description: string | null;
+  fileUrl: string | null;
+  contentText: string | null;
+  orderIndex: number;
+}
+
+export interface CourseDetail extends CourseSummary {
+  content: CourseContentItem[];
+  assessments: unknown[];
+}
+
+export interface PublishCheck {
+  key: string;
+  label: string;
+  required: boolean;
+  passed: boolean;
+}
+
+export interface InstructorMetrics {
+  myCourses: number;
+  totalStudents: number;
+  activeLearners: number;
+  avgCompletion: number;
+}
+
+export interface CourseEnrollment {
+  enrollment_id: string;
+  user: { id: string; name: string; email: string; department: string | null };
+  status: 'assigned' | 'in_progress' | 'completed' | 'overdue';
+  progress_percentage: number;
+  time_spent: number;
+  enrolled_at: string;
+  completed_at: string | null;
+}

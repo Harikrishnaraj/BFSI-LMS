@@ -21,7 +21,7 @@ const NAV: Record<Role, NavItem[]> = {
     { href: '/admin/compliance', label: 'Compliance reports', icon: FileBarChart },
   ],
   instructor: [
-    { href: '/instructor', label: 'Overview', icon: LayoutDashboard },
+    { href: '/instructor', label: 'Instructor Dashboard', icon: LayoutDashboard },
     { href: '/instructor/courses', label: 'My courses', icon: BookOpen },
   ],
   learner: [

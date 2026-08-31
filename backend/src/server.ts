@@ -10,6 +10,8 @@ import { authRouter } from './routes/auth.js';
 import { webhookRouter } from './routes/webhooks.js';
 import { adminRouter } from './routes/admin.js';
 import { auditLogsRouter } from './routes/auditLogs.js';
+import { coursesRouter } from './routes/courses.js';
+import { instructorRouter } from './routes/instructor.js';
 
 export const app = express();
 
@@ -27,6 +29,8 @@ app.use(clerkMiddleware()); // populates req.auth; does not reject anonymous req
 app.use('/api', authRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/audit-logs', auditLogsRouter);
+app.use('/api/courses', coursesRouter);
+app.use('/api/instructor', instructorRouter);
 
 app.use(notFound);
 app.use(errorHandler);
