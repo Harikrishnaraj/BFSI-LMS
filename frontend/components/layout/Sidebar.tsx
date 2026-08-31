@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, ClipboardList, LayoutDashboard, ShieldCheck, Users } from 'lucide-react';
+import { BookOpen, ClipboardList, FileBarChart, LayoutDashboard, ShieldCheck, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Role } from '@/types';
 
@@ -15,9 +15,10 @@ interface NavItem {
 // Placeholder navigation — real destinations land with the feature work.
 const NAV: Record<Role, NavItem[]> = {
   admin: [
-    { href: '/admin', label: 'Overview', icon: LayoutDashboard },
+    { href: '/admin', label: 'Admin Dashboard', icon: LayoutDashboard },
     { href: '/admin/users', label: 'Users', icon: Users },
-    { href: '/admin/audit', label: 'Audit log', icon: ShieldCheck },
+    { href: '/admin/audit-logs', label: 'Audit logs', icon: ShieldCheck },
+    { href: '/admin/compliance', label: 'Compliance reports', icon: FileBarChart },
   ],
   instructor: [
     { href: '/instructor', label: 'Overview', icon: LayoutDashboard },
@@ -43,6 +44,7 @@ export function Sidebar({ role }: { role: Role }) {
 
       <nav className="flex-1 space-y-1 p-4">
         {NAV[role].map(({ href, label, icon: Icon }) => {
+          // '/admin' would otherwise light up on every nested admin route.
           const active = pathname === href;
           return (
             <Link

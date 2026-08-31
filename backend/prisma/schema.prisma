@@ -18,6 +18,13 @@ enum AuditStatus {
   failure
 }
 
+enum EnrollmentStatus {
+  assigned
+  in_progress
+  completed
+  overdue
+}
+
 enum CourseStatus {
   draft
   published
@@ -39,8 +46,10 @@ model User {
   // Set for accounts provisioned by Clerk; null for local password accounts.
   clerkId String? @unique @map("clerk_id")
 
-  courses   Course[]   @relation("CourseOwner")
-  auditLogs AuditLog[]
+  courses      Course[]      @relation("CourseOwner")
+  auditLogs    AuditLog[]
+  enrollments  Enrollment[]
+  certificates Certificate[]
 
   @@map("users")
 }
@@ -59,6 +68,8 @@ model AuditLog {
   status       AuditStatus @default(success)
   errorMessage String?     @map("error_message")
   details      Json?
+  /// Correlates a trail entry with the request log line that produced it.
+  requestId    String?     @map("request_id")
   timestamp    DateTime    @default(now())
 
   @@index([userId, timestamp(sort: Desc)])
@@ -81,6 +92,45 @@ model Course {
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
 
+  enrollments  Enrollment[]
+  certificates Certificate[]
+
   @@index([status, ownerId])
   @@map("courses")
+}
+
+/// Who has been assigned what, and how far they got. The compliance metrics
+/// (completion rate, at-risk counts) are all derived from this table.
+model Enrollment {
+  id          String           @id @default(uuid()) @db.Uuid
+  userId      String           @map("user_id") @db.Uuid
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId    String           @map("course_id") @db.Uuid
+  course      Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  status      EnrollmentStatus @default(assigned)
+  progress    Int              @default(0)
+  dueAt       DateTime?        @map("due_at")
+  completedAt DateTime?        @map("completed_at")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  @@unique([userId, courseId])
+  @@index([courseId, status])
+  @@index([status, dueAt])
+  @@map("enrollments")
+}
+
+/// Issued on completion. expiresAt drives the 'certificates expiring soon' metric.
+model Certificate {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String    @map("course_id") @db.Uuid
+  course    Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  issuedAt  DateTime  @default(now()) @map("issued_at")
+  expiresAt DateTime? @map("expires_at")
+
+  @@index([expiresAt])
+  @@index([userId])
+  @@map("certificates")
 }

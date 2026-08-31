@@ -70,3 +70,24 @@ test('GET /api/auth/me requires authentication', async () => {
   const res = await fetch(`${base}/api/auth/me`);
   assert.equal(res.status, 401);
 });
+
+test('admin endpoints reject anonymous callers with 401', async () => {
+  for (const path of [
+    '/api/admin/dashboard/metrics',
+    '/api/admin/users',
+    '/api/admin/audit-logs',
+    '/api/audit-logs',
+  ]) {
+    const res = await fetch(`${base}${path}`);
+    assert.equal(res.status, 401, path);
+  }
+});
+
+test('admin user creation rejects anonymous callers before validating the body', async () => {
+  const res = await fetch(`${base}/api/admin/users`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'not-an-email' }),
+  });
+  assert.equal(res.status, 401);
+});

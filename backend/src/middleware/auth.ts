@@ -1,6 +1,7 @@
 import type { RequestHandler } from 'express';
 import { getAuth } from '@clerk/express';
 import type { Role } from '@prisma/client';
+import { prisma } from '../services/db.js';
 
 const isRole = (v: unknown): v is Role =>
   v === 'admin' || v === 'instructor' || v === 'learner';
@@ -12,7 +13,7 @@ const isRole = (v: unknown): v is Role =>
  * Clerk's own requireAuth() 302s to a sign-in page, which is wrong for a JSON
  * API, so we answer 401 instead.
  */
-export const requireUser: RequestHandler = (req, res, next) => {
+export const requireUser: RequestHandler = async (req, res, next) => {
   const { userId, sessionClaims } = getAuth(req);
   if (!userId) {
     res.status(401).json({ error: 'Unauthenticated', requestId: req.requestId });
@@ -21,11 +22,18 @@ export const requireUser: RequestHandler = (req, res, next) => {
 
   const claims = (sessionClaims ?? {}) as { email?: unknown; role?: unknown };
 
+  // audit_logs.user_id references users.id, not the Clerk id, so the local row
+  // has to be resolved here for actions to be attributable.
+  const local = await prisma.user
+    .findUnique({ where: { clerkId: userId }, select: { id: true, email: true, role: true } })
+    .catch(() => null);
+
   req.user = {
     id: userId,
-    email: typeof claims.email === 'string' ? claims.email : undefined,
+    dbId: local?.id,
+    email: typeof claims.email === 'string' ? claims.email : local?.email,
     // Least privilege: an absent or unrecognised claim is never an admin.
-    role: isRole(claims.role) ? claims.role : 'learner',
+    role: isRole(claims.role) ? claims.role : (local?.role ?? 'learner'),
   };
 
   next();
@@ -48,5 +56,8 @@ export const requireRole =
     }
     next();
   };
+
+/** Every admin route needs both, so bundle them. */
+export const requireAdmin: RequestHandler[] = [requireUser, requireRole('admin')];
 
 export { getAuth };
