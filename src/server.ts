@@ -1,0 +1,53 @@
+import express from 'express';
+import { clerkMiddleware } from '@clerk/express';
+import { env } from './utils/env.js';
+import { connectRedis } from './services/redis.js';
+import { prisma } from './services/db.js';
+import { logger } from './middleware/logger.js';
+import { errorHandler, notFound } from './middleware/errorHandler.js';
+import { healthRouter } from './routes/health.js';
+import { authRouter } from './routes/auth.js';
+import { webhookRouter } from './routes/webhooks.js';
+
+export const app = express();
+
+app.use(logger);
+
+// Webhooks parse their own raw body and must run before express.json() consumes it.
+app.use('/api', webhookRouter);
+
+app.use(express.json());
+
+// Health is mounted before auth so it stays up even if Clerk is misconfigured.
+app.use('/api', healthRouter);
+
+app.use(clerkMiddleware()); // populates req.auth; does not reject anonymous requests
+app.use('/api', authRouter);
+
+app.use(notFound);
+app.use(errorHandler);
+
+const start = async () => {
+  // Redis is a cache, not a hard dependency: connect in the background so a
+  // down/slow Redis never blocks the API from serving.
+  void connectRedis().catch((err) => console.error('[redis] connect failed:', err));
+  const server = app.listen(env.PORT, () =>
+    console.log(`API listening on :${env.PORT} (${env.NODE_ENV})`)
+  );
+
+  const shutdown = async () => {
+    server.close();
+    await Promise.allSettled([prisma.$disconnect()]);
+    process.exit(0);
+  };
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+};
+
+// Only boot when run directly, so tests can import `app` without opening a port.
+if (require.main === module) {
+  start().catch((err) => {
+    console.error('Failed to start', err);
+    process.exit(1);
+  });
+}
