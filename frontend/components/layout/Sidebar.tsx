@@ -2,7 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, ClipboardList, FileBarChart, LayoutDashboard, ShieldCheck, Users } from 'lucide-react';
+import {
+  Award,
+  BookOpen,
+  ClipboardList,
+  FileBarChart,
+  LayoutDashboard,
+  ShieldCheck,
+  Users,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Role } from '@/types';
 
@@ -25,8 +33,9 @@ const NAV: Record<Role, NavItem[]> = {
     { href: '/instructor/courses', label: 'My courses', icon: BookOpen },
   ],
   learner: [
-    { href: '/learner', label: 'Overview', icon: LayoutDashboard },
-    { href: '/learner/courses', label: 'My training', icon: ClipboardList },
+    { href: '/learner', label: 'My Learning', icon: LayoutDashboard },
+    { href: '/learner/courses', label: 'Browse courses', icon: ClipboardList },
+    { href: '/learner/certificates', label: 'Certificates', icon: Award },
   ],
 };
 

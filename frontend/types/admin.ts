@@ -115,3 +115,61 @@ export interface CourseEnrollment {
   enrolled_at: string;
   completed_at: string | null;
 }
+
+export type ApiEnrollmentStatus = 'not_started' | 'in_progress' | 'completed' | 'overdue';
+export type CertificateState = 'active' | 'expiring_soon' | 'expired';
+
+export interface LearnerCertificate {
+  id: string;
+  course: { id: string; title: string; complianceType?: string | null };
+  issued_at: string;
+  expires_at: string | null;
+  state: CertificateState;
+}
+
+export interface LearnerDashboard {
+  coursesInProgress: number;
+  coursesCompleted: number;
+  learningHours: number;
+  activeCertificates: number;
+  mandatoryCourses: {
+    enrollmentId: string;
+    course: { id: string; title: string; category: string | null; isMandatory: boolean };
+    status: ApiEnrollmentStatus;
+    progress_percentage: number;
+    due_at: string | null;
+    overdue: boolean;
+  }[];
+  certificates: LearnerCertificate[];
+  continueCourseId: string | null;
+}
+
+export interface MyEnrollment {
+  enrollmentId: string;
+  course_id: string;
+  status: ApiEnrollmentStatus;
+  progress_percentage: number;
+  time_spent_seconds: number;
+}
+
+export interface Lesson {
+  id: string;
+  title: string;
+  description: string | null;
+  type: ContentType;
+  fileUrl: string | null;
+  contentText: string | null;
+  orderIndex: number;
+  completed_at: string | null;
+}
+
+export interface CourseProgress {
+  enrollmentId: string;
+  course_id: string;
+  progress_percentage: number;
+  time_spent_seconds: number;
+  status: ApiEnrollmentStatus;
+  completed_at: string | null;
+  lessons_completed: number;
+  total_lessons: number;
+}
