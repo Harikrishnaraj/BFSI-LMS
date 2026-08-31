@@ -7,6 +7,9 @@ import { enrol } from '../src/controllers/enrollments.js';
 import { completeLessonHandler, getCourseProgress, trackTime } from '../src/controllers/progress.js';
 import { listUsers } from '../src/controllers/admin/users.js';
 import { listAuditLogs } from '../src/controllers/admin/auditLogs.js';
+import { connectRedis, redis } from '../src/services/redis.js';
+import { getDashboardMetrics } from '../src/services/metrics.js';
+import { cacheKey, invalidateCourseLists, readList, writeList } from '../src/services/courses.js';
 
 /**
  * These run against a real Postgres and skip when one isn't reachable, so a
@@ -56,6 +59,17 @@ const asInstructor = (over: Record<string, unknown> = {}) =>
 const asLearner = (over: Record<string, unknown> = {}) =>
   makeReq({ user: { id: 'clerk-l', dbId: learnerId, role: 'learner' }, ...over });
 
+/** Connecting an already-open client throws, so only connect once. */
+const redisReady = async (): Promise<boolean> => {
+  if (redis.isOpen) return true;
+  try {
+    await connectRedis();
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 before(async () => {
   try {
     await prisma.$queryRaw`SELECT 1`;
@@ -89,6 +103,7 @@ before(async () => {
 });
 
 after(async () => {
+  if (redis.isOpen) await redis.quit();
   if (!available) return;
 
   // Audit rows null their user_id on delete, so clear ours by request id.
@@ -248,4 +263,44 @@ test('admin user search hits the real database', async (t) => {
 
   assert.equal(res.body.total, 2);
   assert.equal(res.body.data.every((u: any) => !('passwordHash' in u)), true);
+});
+
+test('dashboard metrics are served from cache on the second call', async (t) => {
+  if (!available) return t.skip('no database');
+
+  if (!(await redisReady())) return t.skip('no redis');
+
+  await redis.del('admin:dashboard:metrics');
+  const first = await getDashboardMetrics();
+
+  const cached = await redis.get('admin:dashboard:metrics');
+  assert.ok(cached, 'metrics were not written to the cache');
+  // The 5 minute TTL is the contract the frontend polls against.
+  const ttl = await redis.ttl('admin:dashboard:metrics');
+  assert.ok(ttl > 0 && ttl <= 300, `unexpected ttl: ${ttl}`);
+
+  // Poison the cache: a second call returning the poisoned value proves the
+  // read path is actually used rather than silently recomputing.
+  await redis.set(
+    'admin:dashboard:metrics',
+    JSON.stringify({ ...first, totalUsers: 999_999 }),
+    { EX: 300 }
+  );
+  assert.equal((await getDashboardMetrics()).totalUsers, 999_999);
+
+  await redis.del('admin:dashboard:metrics');
+});
+
+test('course list caches are readable and cleared by invalidation', async (t) => {
+  if (!available) return t.skip('no database');
+
+  if (!(await redisReady())) return t.skip('no redis');
+
+  const key = cacheKey({ marker: MARKER, page: 1 });
+  await writeList(key, { data: ['cached'] });
+  assert.deepEqual(await readList(key), { data: ['cached'] });
+
+  // Any course mutation calls this; every cached list must go.
+  await invalidateCourseLists();
+  assert.equal(await readList(key), null);
 });
