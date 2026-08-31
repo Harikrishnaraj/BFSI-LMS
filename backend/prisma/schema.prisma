@@ -25,6 +25,19 @@ enum EnrollmentStatus {
   overdue
 }
 
+enum ContentType {
+  video
+  pdf
+  richtext
+  scorm
+}
+
+enum Difficulty {
+  beginner
+  intermediate
+  advanced
+}
+
 enum CourseStatus {
   draft
   published
@@ -89,13 +102,16 @@ model Course {
   complianceType String?      @map("compliance_type")
   targetAudience String?      @map("target_audience")
   version        Int          @default(1)
+  difficulty     Difficulty   @default(beginner)
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
 
   enrollments  Enrollment[]
   certificates Certificate[]
+  content      CourseContent[]
 
   @@index([status, ownerId])
+  @@index([category])
   @@map("courses")
 }
 
@@ -109,6 +125,8 @@ model Enrollment {
   course      Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
   status      EnrollmentStatus @default(assigned)
   progress    Int              @default(0)
+  /// Seconds of study time reported by the player; drives the progress view.
+  timeSpent   Int              @default(0) @map("time_spent")
   dueAt       DateTime?        @map("due_at")
   completedAt DateTime?        @map("completed_at")
   createdAt   DateTime         @default(now()) @map("created_at")
@@ -118,6 +136,27 @@ model Enrollment {
   @@index([courseId, status])
   @@index([status, dueAt])
   @@map("enrollments")
+}
+
+/// One item in a course: a video, a PDF, a rich-text page, or a SCORM package.
+model CourseContent {
+  id          String      @id @default(uuid()) @db.Uuid
+  courseId    String      @map("course_id") @db.Uuid
+  course      Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  contentType ContentType @map("content_type")
+  title       String
+  description String?
+  /// Set for video, pdf and scorm items.
+  fileUrl     String?     @map("file_url")
+  /// Set for richtext items.
+  contentText String?     @map("content_text")
+  orderIndex  Int         @map("order_index")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  @@unique([courseId, orderIndex])
+  @@index([courseId])
+  @@map("course_content")
 }
 
 /// Issued on completion. expiresAt drives the 'certificates expiring soon' metric.
