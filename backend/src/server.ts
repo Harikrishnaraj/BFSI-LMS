@@ -12,6 +12,8 @@ import { adminRouter } from './routes/admin.js';
 import { auditLogsRouter } from './routes/auditLogs.js';
 import { coursesRouter } from './routes/courses.js';
 import { instructorRouter } from './routes/instructor.js';
+import { scormRouter } from './routes/scorm.js';
+import { learnerRouter } from './routes/learner.js';
 
 export const app = express();
 
@@ -31,6 +33,8 @@ app.use('/api/admin', adminRouter);
 app.use('/api/audit-logs', auditLogsRouter);
 app.use('/api/courses', coursesRouter);
 app.use('/api/instructor', instructorRouter);
+app.use('/api/scorm', scormRouter);
+app.use('/api/learner', learnerRouter);
 
 app.use(notFound);
 app.use(errorHandler);

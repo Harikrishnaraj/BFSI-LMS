@@ -32,6 +32,13 @@ enum ContentType {
   scorm
 }
 
+enum CompletionStatus {
+  incomplete
+  completed
+  passed
+  failed
+}
+
 enum Difficulty {
   beginner
   intermediate
@@ -106,9 +113,10 @@ model Course {
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
 
-  enrollments  Enrollment[]
-  certificates Certificate[]
-  content      CourseContent[]
+  enrollments   Enrollment[]
+  certificates  Certificate[]
+  content       CourseContent[]
+  scormPackages ScormPackage[]
 
   @@index([status, ownerId])
   @@index([category])
@@ -131,6 +139,10 @@ model Enrollment {
   completedAt DateTime?        @map("completed_at")
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  lessonCompletions LessonCompletion[]
+  scormTracking     ScormTracking[]
+  scormSessions     ScormSession[]
 
   @@unique([userId, courseId])
   @@index([courseId, status])
@@ -157,6 +169,78 @@ model CourseContent {
   @@unique([courseId, orderIndex])
   @@index([courseId])
   @@map("course_content")
+}
+
+/// Records that a learner finished one content item.
+model LessonCompletion {
+  id           String     @id @default(uuid()) @db.Uuid
+  enrollmentId String     @map("enrollment_id") @db.Uuid
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  contentId    String     @map("content_id") @db.Uuid
+  completedAt  DateTime   @default(now()) @map("completed_at")
+
+  @@unique([enrollmentId, contentId])
+  @@index([enrollmentId])
+  @@map("lesson_completions")
+}
+
+/// An uploaded and validated SCORM package, extracted under var/scorm/<id>.
+model ScormPackage {
+  id           String   @id @default(uuid()) @db.Uuid
+  courseId     String   @map("course_id") @db.Uuid
+  course       Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title        String
+  version      String
+  /// Path of the launch file inside the extracted package.
+  entryPoint   String   @map("entry_point")
+  /// Typical duration declared by the manifest, in seconds.
+  duration     Int?
+  manifest     Json
+  originalName String   @map("original_name")
+  sizeBytes    Int      @map("size_bytes")
+  uploadedById String?  @map("uploaded_by_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  sessions ScormSession[]
+  tracking ScormTracking[]
+
+  @@index([courseId])
+  @@map("scorm_packages")
+}
+
+/// One launch of a package by one learner; the token authorises tracking posts.
+model ScormSession {
+  id             String       @id @default(uuid()) @db.Uuid
+  scormPackageId String       @map("scorm_package_id") @db.Uuid
+  scormPackage   ScormPackage @relation(fields: [scormPackageId], references: [id], onDelete: Cascade)
+  enrollmentId   String       @map("enrollment_id") @db.Uuid
+  enrollment     Enrollment   @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  token          String       @unique
+  expiresAt      DateTime     @map("expires_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@index([enrollmentId])
+  @@map("scorm_sessions")
+}
+
+/// Rolled-up xAPI results for one learner on one package.
+model ScormTracking {
+  id               String           @id @default(uuid()) @db.Uuid
+  enrollmentId     String           @map("enrollment_id") @db.Uuid
+  enrollment       Enrollment       @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  scormPackageId   String           @map("scorm_package_id") @db.Uuid
+  scormPackage     ScormPackage     @relation(fields: [scormPackageId], references: [id], onDelete: Cascade)
+  learnerId        String           @map("learner_id") @db.Uuid
+  score            Int?
+  completionStatus CompletionStatus @default(incomplete) @map("completion_status")
+  timeSpentSeconds Int              @default(0) @map("time_spent_seconds")
+  /// Raw cmi.interactions equivalents, appended as statements arrive.
+  interactions     Json             @default("[]")
+  lastAccessedAt   DateTime         @default(now()) @map("last_accessed_at")
+
+  @@unique([enrollmentId, scormPackageId])
+  @@index([learnerId])
+  @@map("scorm_tracking")
 }
 
 /// Issued on completion. expiresAt drives the 'certificates expiring soon' metric.

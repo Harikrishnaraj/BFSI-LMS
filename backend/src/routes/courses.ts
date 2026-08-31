@@ -15,7 +15,14 @@ import {
   reorderContent,
   updateContent,
 } from '../controllers/courseContent.js';
-import { enrol, getProgress, listEnrollments } from '../controllers/enrollments.js';
+import { enrol, listEnrollments } from '../controllers/enrollments.js';
+import {
+  completeLessonHandler,
+  getCourseProgress,
+  listLessons,
+  postCourseProgress,
+  trackTime,
+} from '../controllers/progress.js';
 
 export const coursesRouter = Router();
 
@@ -40,4 +47,10 @@ coursesRouter.post('/:id/content/reorder', authoring, reorderContent);
 coursesRouter.get('/:id/enrollments', authoring, listEnrollments);
 
 coursesRouter.post('/:id/enroll', requireUser, requireRole('learner'), enrol);
-coursesRouter.get('/:id/progress', requireUser, getProgress);
+
+// A learner's own progress through their own enrollment.
+coursesRouter.get('/:id/progress', requireUser, getCourseProgress);
+coursesRouter.post('/:id/progress', requireUser, postCourseProgress);
+coursesRouter.get('/:id/lessons', requireUser, listLessons);
+coursesRouter.post('/:id/lessons/:lessonId/complete', requireUser, completeLessonHandler);
+coursesRouter.post('/:id/time-tracking', requireUser, trackTime);

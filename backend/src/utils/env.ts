@@ -12,6 +12,8 @@ export const env = {
   CLERK_PUBLISHABLE_KEY: process.env.CLERK_PUBLISHABLE_KEY!,
   CLERK_WEBHOOK_SIGNING_SECRET: process.env.CLERK_WEBHOOK_SIGNING_SECRET!,
   JWT_SECRET: process.env.JWT_SECRET ?? '',
+  /// Where the SCORM player loads content from; point at SCORM Cloud to swap players.
+  SCORM_PLAYER_BASE_URL: process.env.SCORM_PLAYER_BASE_URL ?? 'http://localhost:3001',
   PORT: Number(process.env.PORT ?? 3001),
   NODE_ENV: process.env.NODE_ENV ?? 'development',
 };
