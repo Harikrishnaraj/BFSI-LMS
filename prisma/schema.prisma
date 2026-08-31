@@ -8,53 +8,79 @@ datasource db {
 }
 
 enum Role {
-  LEARNER
-  INSTRUCTOR
-  ADMIN
+  admin
+  instructor
+  learner
+}
+
+enum AuditStatus {
+  success
+  failure
+}
+
+enum CourseStatus {
+  draft
+  published
+  archived
 }
 
 model User {
-  id          String     @id @default(uuid())
-  clerkId     String     @unique
-  email       String     @unique
-  name        String?
-  role        Role       @default(LEARNER)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  courses     Course[]   @relation("CourseOwner")
-  auditLogs   AuditLog[]
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique
+  name         String
+  role         Role      @default(learner)
+  passwordHash String    @map("password_hash")
+  department   String?
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // Set for accounts provisioned by Clerk; null for local password accounts.
+  clerkId String? @unique @map("clerk_id")
+
+  courses   Course[]   @relation("CourseOwner")
+  auditLogs AuditLog[]
 
   @@map("users")
 }
 
-model Course {
-  id          String   @id @default(uuid())
-  title       String
-  description String?
-  published   Boolean  @default(false)
-  ownerId     String?
-  owner       User?    @relation("CourseOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+/// IMMUTABLE — INSERT ONLY. Never update or delete rows here; BSFI compliance
+/// depends on this trail surviving the records it describes.
+model AuditLog {
+  id           String      @id @default(uuid()) @db.Uuid
+  userId       String?     @map("user_id") @db.Uuid
+  user         User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action       String
+  resourceType String?     @map("resource_type")
+  resourceId   String?     @map("resource_id")
+  ipAddress    String?     @map("ip_address")
+  userAgent    String?     @map("user_agent")
+  status       AuditStatus @default(success)
+  errorMessage String?     @map("error_message")
+  details      Json?
+  timestamp    DateTime    @default(now())
 
-  @@index([ownerId])
-  @@map("courses")
+  @@index([userId, timestamp(sort: Desc)])
+  @@index([timestamp(sort: Desc)])
+  @@map("audit_logs")
 }
 
-// BSFI compliance: append-only trail. Never update or delete rows here.
-model AuditLog {
-  id         String   @id @default(uuid())
-  userId     String?
-  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  action     String
-  entityType String?
-  entityId   String?
-  metadata   Json?
-  ip         String?
-  requestId  String?
-  createdAt  DateTime @default(now())
+model Course {
+  id             String       @id @default(uuid()) @db.Uuid
+  title          String
+  description    String?
+  category       String?
+  ownerId        String?      @map("owner_id") @db.Uuid
+  owner          User?        @relation("CourseOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  status         CourseStatus @default(draft)
+  isMandatory    Boolean      @default(false) @map("is_mandatory")
+  complianceType String?      @map("compliance_type")
+  targetAudience String?      @map("target_audience")
+  version        Int          @default(1)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
 
-  @@index([userId, createdAt])
-  @@index([entityType, entityId])
-  @@map("audit_logs")
+  @@index([status, ownerId])
+  @@map("courses")
 }

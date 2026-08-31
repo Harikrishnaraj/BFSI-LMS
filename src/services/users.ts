@@ -1,7 +1,7 @@
 import type { Prisma, Role, User } from '@prisma/client';
 import { prisma } from './db.js';
 
-const ROLES = ['LEARNER', 'INSTRUCTOR', 'ADMIN'] as const;
+const ROLES = ['admin', 'instructor', 'learner'] as const;
 
 const toRole = (value: unknown): Role | undefined =>
   ROLES.includes(value as Role) ? (value as Role) : undefined;
@@ -21,8 +21,15 @@ const primaryEmail = (u: ClerkUserLike): string | undefined => {
   return (list.find((e) => e.id === u.primary_email_address_id) ?? list[0])?.email_address;
 };
 
-const fullName = (u: ClerkUserLike): string | null =>
-  [u.first_name, u.last_name].filter(Boolean).join(' ') || null;
+// name is NOT NULL, so fall back to the email local part for nameless Clerk users.
+const displayName = (u: ClerkUserLike, email: string): string =>
+  [u.first_name, u.last_name].filter(Boolean).join(' ') || email.split('@')[0];
+
+/**
+ * Clerk owns the credentials for these accounts, but password_hash is NOT NULL.
+ * This sentinel is not a valid scrypt hash, so verifyPassword can never match it.
+ */
+const CLERK_MANAGED = 'clerk-managed';
 
 /** Idempotent: webhooks retry and can arrive out of order, so this must be safe to replay. */
 export const syncClerkUser = async (clerkUser: ClerkUserLike, requestId?: string): Promise<User> => {
@@ -33,7 +40,8 @@ export const syncClerkUser = async (clerkUser: ClerkUserLike, requestId?: string
   const data: Prisma.UserUpsertArgs['create'] = {
     clerkId: clerkUser.id,
     email,
-    name: fullName(clerkUser),
+    name: displayName(clerkUser, email),
+    passwordHash: CLERK_MANAGED,
     ...(role ? { role } : {}),
   };
 
@@ -57,12 +65,23 @@ export const deleteClerkUser = async (clerkId: string, requestId?: string): Prom
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { email: `deleted+${user.id}@invalid`, name: null, clerkId: `deleted+${user.id}` },
+    data: {
+      email: `deleted+${user.id}@invalid`,
+      name: 'Deleted user',
+      clerkId: null,
+      isActive: false,
+    },
   });
   await audit(user.id, 'user.deleted', requestId);
 };
 
 const audit = (userId: string, action: string, requestId?: string) =>
   prisma.auditLog.create({
-    data: { userId, action, entityType: 'user', entityId: userId, requestId },
+    data: {
+      userId,
+      action,
+      resourceType: 'user',
+      resourceId: userId,
+      details: requestId ? { requestId } : undefined,
+    },
   });
