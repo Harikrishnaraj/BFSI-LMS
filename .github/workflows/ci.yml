@@ -35,11 +35,15 @@ jobs:
       # A throwaway CI database, so these are literals rather than secrets.
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bfsi_lms_test
       REDIS_URL: redis://localhost:6379
-      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-      CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
-      CLERK_WEBHOOK_SIGNING_SECRET: ${{ secrets.CLERK_WEBHOOK_SIGNING_SECRET }}
+      # The suite never calls Clerk's API, but env validation and
+      # clerkMiddleware() both require format-valid keys, so fall back to
+      # dummies when the secrets aren't configured. Set the repo secrets to
+      # run against a real Clerk test instance.
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY || 'sk_test_ci_placeholder' }}
+      CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY || 'pk_test_ZXhhbXBsZS5jbGVyay5hY2NvdW50cy5kZXYk' }}
+      CLERK_WEBHOOK_SIGNING_SECRET: ${{ secrets.CLERK_WEBHOOK_SIGNING_SECRET || 'whsec_Y2lfcGxhY2Vob2xkZXJfc2VjcmV0X3Zh' }}
       NEXT_PUBLIC_API_URL: http://localhost:3001
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY || 'pk_test_ZXhhbXBsZS5jbGVyay5hY2NvdW50cy5kZXYk' }}
 
     steps:
       - uses: actions/checkout@v4
