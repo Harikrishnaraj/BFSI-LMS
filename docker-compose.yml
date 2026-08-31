@@ -1,0 +1,54 @@
+# Local development stack. App code runs on the host (npm run dev);
+# this provides the backing services.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: inquiry_lms
+    ports: ['5432:5432']
+    volumes: ['pgdata:/var/lib/postgresql/data']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports: ['6379:6379']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Opt in with: docker compose --profile apps up
+  backend:
+    profiles: ['apps']
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file: backend/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/inquiry_lms
+      REDIS_URL: redis://redis:6379
+      PORT: '3001'
+    ports: ['3001:3001']
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  frontend:
+    profiles: ['apps']
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3001
+    ports: ['3000:3000']
+    depends_on: [backend]
+
+volumes:
+  pgdata:

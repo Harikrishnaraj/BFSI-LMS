@@ -1,27 +1,25 @@
 {
-  "name": "inquiry-lms-api",
+  "name": "bfsi-lms",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
   "scripts": {
-    "dev": "tsx watch --env-file-if-exists=.env src/server.ts",
-    "build": "tsc",
-    "test": "tsx --test --env-file-if-exists=.env test/server.test.ts",
-    "start": "node --env-file-if-exists=.env dist/src/server.js",
-    "postinstall": "prisma generate",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
-  },
-  "dependencies": {
-    "@clerk/express": "^1.7.29",
-    "@prisma/client": "^6.19.1",
-    "express": "^5.1.0",
-    "redis": "^5.10.0"
+    "dev": "concurrently -n backend,frontend -c blue,magenta \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:backend": "npm run dev --workspace backend",
+    "dev:frontend": "npm run dev --workspace frontend",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "npm run build --workspace backend",
+    "build:frontend": "npm run build --workspace frontend",
+    "test": "npm run test --workspaces --if-present",
+    "test:watch": "npm run test:watch --workspace backend",
+    "lint": "npm run lint --workspaces --if-present",
+    "deploy:staging": "echo \"Deploy is driven by .github/workflows/deploy.yml on push to main\" && exit 1",
+    "deploy:production": "echo \"Production deploys require manual approval in the GitHub 'production' environment\" && exit 1"
   },
   "devDependencies": {
-    "@types/express": "^5.0.0",
-    "@types/node": "^24.10.1",
-    "prisma": "^6.19.1",
-    "tsx": "^4.20.7",
-    "typescript": "^5.9.3"
+    "concurrently": "^10.0.5"
   }
 }
