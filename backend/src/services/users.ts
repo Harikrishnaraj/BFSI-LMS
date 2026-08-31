@@ -1,4 +1,5 @@
 import type { Prisma, Role, User } from '@prisma/client';
+import { clerkClient } from '@clerk/express';
 import { prisma } from './db.js';
 
 const ROLES = ['admin', 'instructor', 'learner'] as const;
@@ -14,6 +15,7 @@ export interface ClerkUserLike {
   first_name?: string | null;
   last_name?: string | null;
   public_metadata?: Record<string, unknown> | null;
+  unsafe_metadata?: Record<string, unknown> | null;
 }
 
 const primaryEmail = (u: ClerkUserLike): string | undefined => {
@@ -36,7 +38,11 @@ export const syncClerkUser = async (clerkUser: ClerkUserLike, requestId?: string
   const email = primaryEmail(clerkUser);
   if (!email) throw Object.assign(new Error('Clerk user has no email address'), { status: 422 });
 
-  const role = toRole(clerkUser.public_metadata?.role);
+  // Signup writes the chosen role to unsafeMetadata (the only metadata a
+  // browser may set). Trust it only to seed publicMetadata on first sync;
+  // publicMetadata is what the session token's role claim reads from.
+  const role =
+    toRole(clerkUser.public_metadata?.role) ?? toRole(clerkUser.unsafe_metadata?.role);
   const data: Prisma.UserUpsertArgs['create'] = {
     clerkId: clerkUser.id,
     email,
@@ -50,6 +56,10 @@ export const syncClerkUser = async (clerkUser: ClerkUserLike, requestId?: string
     create: data,
     update: { email: data.email, name: data.name, ...(role ? { role } : {}) },
   });
+
+  if (role && !toRole(clerkUser.public_metadata?.role)) {
+    await promoteRoleToPublicMetadata(clerkUser.id, role);
+  }
 
   await audit(user.id, 'user.synced', requestId);
   return user;
@@ -85,3 +95,14 @@ const audit = (userId: string, action: string, requestId?: string) =>
       details: requestId ? { requestId } : undefined,
     },
   });
+
+/** Mirrors the role into publicMetadata so it lands in the session token claims. */
+const promoteRoleToPublicMetadata = async (clerkId: string, role: Role): Promise<void> => {
+  try {
+    await clerkClient.users.updateUserMetadata(clerkId, { publicMetadata: { role } });
+  } catch (err) {
+    // The database row is already correct; a failed mirror shouldn't fail the
+    // webhook and trigger a Clerk retry storm.
+    console.error('[users] could not mirror role to Clerk publicMetadata', err);
+  }
+};
