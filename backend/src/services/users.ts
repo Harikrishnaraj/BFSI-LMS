@@ -1,6 +1,7 @@
 import type { Prisma, Role, User } from '@prisma/client';
 import { clerkClient } from '@clerk/express';
 import { prisma } from './db.js';
+import { writeAudit } from './audit.js';
 
 const ROLES = ['admin', 'instructor', 'learner'] as const;
 
@@ -86,15 +87,7 @@ export const deleteClerkUser = async (clerkId: string, requestId?: string): Prom
 };
 
 const audit = (userId: string, action: string, requestId?: string) =>
-  prisma.auditLog.create({
-    data: {
-      userId,
-      action,
-      resourceType: 'user',
-      resourceId: userId,
-      details: requestId ? { requestId } : undefined,
-    },
-  });
+  writeAudit({ userId, action, resourceType: 'user', resourceId: userId, requestId });
 
 /** Mirrors the role into publicMetadata so it lands in the session token claims. */
 const promoteRoleToPublicMetadata = async (clerkId: string, role: Role): Promise<void> => {
