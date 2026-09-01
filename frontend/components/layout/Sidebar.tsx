@@ -2,42 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  Award,
-  BookOpen,
-  ClipboardList,
-  FileBarChart,
-  LayoutDashboard,
-  ShieldCheck,
-  Users,
-} from 'lucide-react';
+import { NAV } from './nav';
 import { cn } from '@/lib/utils';
 import type { Role } from '@/types';
-
-interface NavItem {
-  href: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-}
-
-// Placeholder navigation — real destinations land with the feature work.
-const NAV: Record<Role, NavItem[]> = {
-  admin: [
-    { href: '/admin', label: 'Admin Dashboard', icon: LayoutDashboard },
-    { href: '/admin/users', label: 'Users', icon: Users },
-    { href: '/admin/audit-logs', label: 'Audit logs', icon: ShieldCheck },
-    { href: '/admin/compliance', label: 'Compliance reports', icon: FileBarChart },
-  ],
-  instructor: [
-    { href: '/instructor', label: 'Instructor Dashboard', icon: LayoutDashboard },
-    { href: '/instructor/courses', label: 'My courses', icon: BookOpen },
-  ],
-  learner: [
-    { href: '/learner', label: 'My Learning', icon: LayoutDashboard },
-    { href: '/learner/courses', label: 'Browse courses', icon: ClipboardList },
-    { href: '/learner/certificates', label: 'Certificates', icon: Award },
-  ],
-};
 
 export function Sidebar({ role }: { role: Role }) {
   const pathname = usePathname();
