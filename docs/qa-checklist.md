@@ -1,7 +1,14 @@
 # QA checklist
 
-What has and hasn't been proven, and the order worth testing in. Everything
-below is written from the state of `main` plus the open PRs.
+What has and hasn't been proven, and the order worth testing in. Current as of
+the browser QA pass on 1 September; everything described here is merged to
+`main`.
+
+The short version: the API logic is well covered by tests, and the **integration
+seams are where the bugs have actually been** — token claims, CORS, data shapes
+between API and UI, and anything only a browser exercises. Six real bugs have
+come out of this checklist so far, none of which the test suite could have
+caught.
 
 ## Local environment
 
@@ -23,7 +30,13 @@ npm run check:clerk --workspace backend  # verifies Clerk config, prints no secr
 npm run prisma:seed --workspace backend  # re-seed
 npm run qa:e2e --workspace backend       # 33 authenticated end-to-end checks
                                          # (needs both servers running + real Clerk keys)
+npm run signin:link --workspace backend -- admin   # ticket link for browser QA
 ```
+
+If a dashboard looks unstyled or a button does nothing **in development only**,
+suspect the dev server before the code: switching branches invalidates `.next`,
+and a file exporting both a component and a plain value breaks Fast Refresh for
+every importer, leaving the page unhydrated. `rm -rf frontend/.next` and restart.
 
 ## What is already proven
 
@@ -82,18 +95,49 @@ learner.
 - [ ] An instructor can only edit their own courses — needs a second instructor
       account to test properly
 
-### 3. The three dashboards with real data
+### 3. The dashboards in a browser — admin and learner DONE, instructor blocked
 
-They have been type-checked and built, never rendered against an API.
+The first browser pass (1 September) found **four** bugs that 54 passing tests, a
+clean typecheck and a successful build had all missed. Details in PRs #8 and #9.
 
-- [ ] Admin: metrics, compliance table, pie chart, user CRUD, audit log viewer,
-      CSV export and its download
-- [ ] Instructor: metrics, course list tabs, course editor, content reorder,
-      publish and archive modals
-- [ ] Learner: dashboard, browse and enrol, the learn view, lesson completion,
-      certificates page
+Signing in without a password: `npm run signin:link --workspace backend -- admin`
+mints a 10-minute Clerk ticket link. Sign out first — a ticket is refused while
+a session exists.
+
+- [x] Admin: metrics, compliance table, pie chart, user list, live search, audit
+      log viewer
+- [ ] Admin: user create/edit modals, deactivate, CSV export **and its download**
+- [ ] **Instructor: blocked** — `/instructor` requires `role === 'instructor'` and
+      no such account exists (kesdee is admin, gmail is learner). Make a third
+      account, or flip one temporarily. `/instructor/courses` and the course
+      editor accept admins, so those can be tested without one.
+- [x] Learner: dashboard, browse, enrol, learn view, lesson completion,
+      sequential unlock
+- [ ] Learner: certificates page (nothing has ever issued a certificate)
 - [ ] Loading skeletons and error states — pull the backend down mid-session
-- [ ] Dark mode and mobile widths
+- [x] Dark mode — was entirely broken, now works via OS setting
+- [x] Mobile widths — no navigation existed at all below `md`; there is now
+
+Fixed during that pass:
+
+1. **No CORS on the API.** Every client-side call was blocked. Tests call the API
+   directly and Next's server components call it server-side, so nothing ever
+   sent a browser `Origin`.
+2. **Role drift.** `/api/auth/me` only synced a missing row, so a role changed in
+   Clerk never reached the database — producing an Admin Dashboard inside an
+   INSTRUCTOR shell.
+3. **The pie chart drew nothing.** Recharts 3 builds sector paths during the
+   entry animation; no animation frame meant an empty `<g>` with correct data
+   behind it.
+4. **The dark palette never shipped.** Tailwind drops class rules in `@layer base`
+   when the class never appears in content, and no toggle exists.
+
+Known and unfixed:
+
+- [ ] An invitation link dead-ends when someone is already signed in:
+      `/login?__clerk_ticket=…` says "You're already signed in" with no way to
+      switch account
+- [ ] "1 users" in user management when a filter matches exactly one
 
 ### 4. SCORM end to end — DONE for a synthetic package
 
@@ -157,7 +201,7 @@ Don't raise these as defects.
 ## Housekeeping
 
 - [ ] Rotate the Clerk secret key — the current one was pasted into a chat
-- [ ] Merge PR #6 (Redis cache tests) and PR #7 (Clerk checker and docs)
+- [x] Merge PR #6 (Redis cache tests) and PR #7 (Clerk checker and docs)
 - [ ] Decide on `password_hash`: it is `NOT NULL` with a `clerk-managed`
       sentinel for Clerk users. Nullable is cleaner if local password login is
       never coming.
