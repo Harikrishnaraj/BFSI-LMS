@@ -21,11 +21,19 @@ npm run dev                              # both servers
 npm test                                 # 54 tests, needs Postgres + Redis for the last 8
 npm run check:clerk --workspace backend  # verifies Clerk config, prints no secrets
 npm run prisma:seed --workspace backend  # re-seed
+npm run qa:e2e --workspace backend       # 33 authenticated end-to-end checks
+                                         # (needs both servers running + real Clerk keys)
 ```
 
 ## What is already proven
 
 Don't spend QA time here unless something looks wrong.
+
+- **The authenticated path, end to end** (`npm run qa:e2e --workspace backend`).
+  33 checks against a running server using real Clerk session tokens minted
+  through the backend API: the authorisation matrix for admin and learner, the
+  course lifecycle, SCORM upload → publish → enrol → launch → xAPI → progress,
+  and the resulting audit trail.
 
 - Validation, authorisation and response shapes across admin, course, SCORM and
   progress endpoints — 46 unit tests.
@@ -40,9 +48,14 @@ Don't spend QA time here unless something looks wrong.
 
 This is the real QA surface.
 
-### 1. Role propagation on first sign-in — test this first
+### 1. Role propagation on first sign-in — DONE, was broken
 
-The most likely thing to look broken.
+Fixed on 1 September. A Clerk user arrives in two shapes — webhooks send
+snake_case, `clerkClient.users.getUser()` returns camelCase — and the sync only
+read snake_case, so `/api/auth/me` threw 422 for everyone and nobody was ever
+provisioned. Both accounts now sync, promote their role, and write an audit row.
+
+Re-test if the sign-up flow changes:
 
 - [ ] Sign up at `/signup` choosing **Admin**
 - [ ] Note which dashboard you land on. The session token's `role` claim reads
@@ -57,15 +70,17 @@ If the role never promotes, the causes to check in order: the session token clai
 (`{ "role": "{{user.public_metadata.role}}" }`) is missing from the Clerk
 dashboard; or `promoteRoleToPublicMetadata` failed and logged.
 
-### 2. Authenticated API access
+### 2. Authenticated API access — DONE
 
-No signed-in HTTP request has ever reached the API. Every test injects `req.user`
-directly, so the Clerk middleware's claim handling is entirely unexercised.
+Covered by `npm run qa:e2e`. The session token claim is configured, so tokens
+now carry `role`, and the middleware resolves it correctly for admin and
+learner.
 
-- [ ] Admin endpoints return data, not 403, for an admin session
-- [ ] A learner session gets **403** from `/api/admin/*`
-- [ ] A learner gets **404** (not 403) for a draft course they cannot see
-- [ ] An instructor can only edit their own courses
+- [x] Admin endpoints return data, not 403, for an admin session
+- [x] A learner session gets **403** from `/api/admin/*`
+- [x] A learner gets **404** (not 403) for a draft course they cannot see
+- [ ] An instructor can only edit their own courses — needs a second instructor
+      account to test properly
 
 ### 3. The three dashboards with real data
 
@@ -80,10 +95,16 @@ They have been type-checked and built, never rendered against an API.
 - [ ] Loading skeletons and error states — pull the backend down mid-session
 - [ ] Dark mode and mobile widths
 
-### 4. SCORM end to end
+### 4. SCORM end to end — DONE for a synthetic package
 
-Manifest and xAPI parsing are unit-tested. Nothing else in the SCORM path has
-executed.
+`qa:e2e` builds a valid SCORM 1.2 package, uploads it, launches it, posts an
+xAPI statement and checks that score, completion, time and course progress all
+land. Traversal defence verified with percent-encoded and backslash payloads —
+note a raw `../` never reaches the server, since fetch normalises it away, so
+testing traversal with one proves nothing.
+
+Still worth doing with a **real authored package** (Articulate, Captivate, iSpring),
+which is far messier than a synthetic one:
 
 - [ ] Upload a real `.zip` package as an instructor
 - [ ] It extracts, and the manifest fields look right
