@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSignIn } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,12 +11,53 @@ import { Label } from '@/components/ui/label';
 import { clerkMessage } from '@/lib/clerk-errors';
 
 export default function LoginPage() {
+  // useSearchParams needs a Suspense boundary in the app router.
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const { isLoaded, signIn, setActive } = useSignIn();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+
+  /*
+   * Clerk sends people here with a __clerk_ticket when they follow an
+   * invitation or a sign-in link. Exchanging it signs them in without a
+   * password; without this the link lands on an ordinary login form and the
+   * ticket is silently ignored.
+   */
+  const ticket = searchParams.get('__clerk_ticket');
+  const ticketUsed = useRef(false);
+
+  useEffect(() => {
+    if (!isLoaded || !ticket || ticketUsed.current) return;
+    ticketUsed.current = true;
+
+    (async () => {
+      setPending(true);
+      try {
+        const result = await signIn.create({ strategy: 'ticket', ticket });
+        if (result.status === 'complete') {
+          await setActive({ session: result.createdSessionId });
+          router.push('/dashboard');
+        } else {
+          setError('That sign-in link needs another step to complete.');
+        }
+      } catch (err) {
+        setError(clerkMessage(err) ?? 'That sign-in link is invalid or has expired.');
+      } finally {
+        setPending(false);
+      }
+    })();
+  }, [isLoaded, ticket, signIn, setActive, router]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
