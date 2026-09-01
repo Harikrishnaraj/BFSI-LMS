@@ -13,7 +13,9 @@
     "prisma:seed": "prisma db seed",
     "test:watch": "tsx --test --watch --env-file-if-exists=.env test/*.test.ts",
     "lint": "tsc --noEmit",
-    "prisma:migrate:deploy": "prisma migrate deploy"
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "check:clerk": "tsx --env-file-if-exists=.env scripts/check-clerk.ts",
+    "qa:e2e": "tsx --env-file-if-exists=.env scripts/qa-e2e.ts"
   },
   "dependencies": {
     "@clerk/express": "^1.7.29",
