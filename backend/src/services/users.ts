@@ -8,25 +8,50 @@ const ROLES = ['admin', 'instructor', 'learner'] as const;
 const toRole = (value: unknown): Role | undefined =>
   ROLES.includes(value as Role) ? (value as Role) : undefined;
 
-/** The subset of a Clerk user object we care about (webhook payload or API result). */
+/**
+ * A Clerk user reaches us in two different shapes, and they are not the same:
+ * webhook payloads are raw snake_case JSON, while clerkClient.users.getUser()
+ * returns camelCase SDK resources. Accept both rather than assuming either.
+ */
 export interface ClerkUserLike {
   id: string;
   primary_email_address_id?: string | null;
+  primaryEmailAddressId?: string | null;
   email_addresses?: { id: string; email_address: string }[];
+  emailAddresses?: { id: string; emailAddress: string }[];
   first_name?: string | null;
+  firstName?: string | null;
   last_name?: string | null;
+  lastName?: string | null;
   public_metadata?: Record<string, unknown> | null;
+  publicMetadata?: Record<string, unknown> | null;
   unsafe_metadata?: Record<string, unknown> | null;
+  unsafeMetadata?: Record<string, unknown> | null;
 }
 
+/** Flattens either shape into one set of fields. */
+const normalise = (u: ClerkUserLike) => ({
+  id: u.id,
+  primaryEmailId: u.primary_email_address_id ?? u.primaryEmailAddressId ?? null,
+  emails: (u.email_addresses ?? []).map((e) => ({ id: e.id, email: e.email_address })).concat(
+    (u.emailAddresses ?? []).map((e) => ({ id: e.id, email: e.emailAddress }))
+  ),
+  firstName: u.first_name ?? u.firstName ?? null,
+  lastName: u.last_name ?? u.lastName ?? null,
+  publicMetadata: u.public_metadata ?? u.publicMetadata ?? null,
+  unsafeMetadata: u.unsafe_metadata ?? u.unsafeMetadata ?? null,
+});
+
 const primaryEmail = (u: ClerkUserLike): string | undefined => {
-  const list = u.email_addresses ?? [];
-  return (list.find((e) => e.id === u.primary_email_address_id) ?? list[0])?.email_address;
+  const { emails, primaryEmailId } = normalise(u);
+  return (emails.find((e) => e.id === primaryEmailId) ?? emails[0])?.email;
 };
 
 // name is NOT NULL, so fall back to the email local part for nameless Clerk users.
-const displayName = (u: ClerkUserLike, email: string): string =>
-  [u.first_name, u.last_name].filter(Boolean).join(' ') || email.split('@')[0];
+const displayName = (u: ClerkUserLike, email: string): string => {
+  const { firstName, lastName } = normalise(u);
+  return [firstName, lastName].filter(Boolean).join(' ') || email.split('@')[0];
+};
 
 /**
  * Clerk owns the credentials for these accounts, but password_hash is NOT NULL.
@@ -42,8 +67,8 @@ export const syncClerkUser = async (clerkUser: ClerkUserLike, requestId?: string
   // Signup writes the chosen role to unsafeMetadata (the only metadata a
   // browser may set). Trust it only to seed publicMetadata on first sync;
   // publicMetadata is what the session token's role claim reads from.
-  const role =
-    toRole(clerkUser.public_metadata?.role) ?? toRole(clerkUser.unsafe_metadata?.role);
+  const { publicMetadata, unsafeMetadata } = normalise(clerkUser);
+  const role = toRole(publicMetadata?.role) ?? toRole(unsafeMetadata?.role);
   const data: Prisma.UserUpsertArgs['create'] = {
     clerkId: clerkUser.id,
     email,
@@ -58,7 +83,7 @@ export const syncClerkUser = async (clerkUser: ClerkUserLike, requestId?: string
     update: { email: data.email, name: data.name, ...(role ? { role } : {}) },
   });
 
-  if (role && !toRole(clerkUser.public_metadata?.role)) {
+  if (role && !toRole(publicMetadata?.role)) {
     await promoteRoleToPublicMetadata(clerkUser.id, role);
   }
 
