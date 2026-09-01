@@ -13,6 +13,7 @@ import { ContentList } from './ContentList';
 import { AddContentModal } from './AddContentModal';
 import { useCourseLifecycle } from './CourseActions';
 import { useCourseApi } from '@/lib/course-api';
+import { cn } from '@/lib/utils';
 import type { CourseContentItem } from '@/types/admin';
 
 export function CourseEditor({ courseId }: { courseId: string }) {
@@ -142,7 +143,7 @@ export function CourseEditor({ courseId }: { courseId: string }) {
           <CardContent>
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
               <Detail label="Category" value={data.category} />
-              <Detail label="Difficulty" value={data.difficulty} />
+              <Detail label="Difficulty" value={data.difficulty} capitalize />
               <Detail label="Compliance type" value={data.complianceType} />
               <Detail label="Target audience" value={data.targetAudience} />
               <Detail label="Mandatory" value={data.isMandatory ? 'Yes' : 'No'} />
@@ -197,15 +198,18 @@ function Detail({
   label,
   value,
   className,
+  /** Only for enum-ish values like difficulty — it title-cases prose otherwise. */
+  capitalize = false,
 }: {
   label: string;
   value: string | null;
   className?: string;
+  capitalize?: boolean;
 }) {
   return (
     <div className={className}>
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className="font-medium capitalize">{value || '—'}</dd>
+      <dd className={cn('font-medium', capitalize && 'capitalize')}>{value || '—'}</dd>
     </div>
   );
 }
