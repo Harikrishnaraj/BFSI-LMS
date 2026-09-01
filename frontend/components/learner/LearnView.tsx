@@ -27,6 +27,13 @@ export function LearnView({ courseId }: { courseId: string }) {
     queryFn: () => api.progress(courseId),
   });
 
+  // Without this the player shows a progress bar and no indication of which
+  // course it belongs to.
+  const course = useQuery({
+    queryKey: ['learner', 'course', courseId],
+    queryFn: () => api.course(courseId),
+  });
+
   const start = useMutation({ mutationFn: () => api.start(courseId) });
   const started = useRef(false);
 
@@ -83,6 +90,9 @@ export function LearnView({ courseId }: { courseId: string }) {
     <>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0 flex-1">
+          <h1 className="mb-2 truncate text-2xl font-semibold tracking-tight">
+            {course.data?.title ?? 'Course'}
+          </h1>
           <div
             className="h-2 w-full max-w-md overflow-hidden rounded bg-muted"
             role="progressbar"
