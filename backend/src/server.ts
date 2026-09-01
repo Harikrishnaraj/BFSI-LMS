@@ -3,6 +3,7 @@ import { clerkMiddleware } from '@clerk/express';
 import { env } from './utils/env.js';
 import { connectRedis } from './services/redis.js';
 import { prisma } from './services/db.js';
+import { cors } from './middleware/cors.js';
 import { logger } from './middleware/logger.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { healthRouter } from './routes/health.js';
@@ -18,6 +19,9 @@ import { learnerRouter } from './routes/learner.js';
 export const app = express();
 
 app.use(logger);
+
+// Before the routers: preflight requests must be answered without auth.
+app.use(cors);
 
 // Webhooks parse their own raw body and must run before express.json() consumes it.
 app.use('/api', webhookRouter);

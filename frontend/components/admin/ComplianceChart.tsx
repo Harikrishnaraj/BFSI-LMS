@@ -28,7 +28,20 @@ export function ComplianceChart({ status }: { status: DashboardMetrics['complian
   return (
     <ResponsiveContainer width="100%" height={260}>
       <PieChart>
-        <Pie data={data} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90}>
+        {/*
+          * isAnimationActive={false}: recharts 3 builds its sector paths inside
+          * the entry animation, so a chart that never gets an animation frame
+          * renders an empty <g> and looks broken. A dashboard donut gains
+          * nothing from the animation anyway.
+          */}
+        <Pie
+          data={data}
+          dataKey="value"
+          nameKey="name"
+          innerRadius={55}
+          outerRadius={90}
+          isAnimationActive={false}
+        >
           {data.map((entry) => (
             <Cell key={entry.name} fill={entry.color} stroke="none" />
           ))}

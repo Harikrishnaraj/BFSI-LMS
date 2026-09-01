@@ -15,7 +15,8 @@
     "lint": "tsc --noEmit",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "check:clerk": "tsx --env-file-if-exists=.env scripts/check-clerk.ts",
-    "qa:e2e": "tsx --env-file-if-exists=.env scripts/qa-e2e.ts"
+    "qa:e2e": "tsx --env-file-if-exists=.env scripts/qa-e2e.ts",
+    "signin:link": "tsx --env-file-if-exists=.env scripts/signin-link.ts"
   },
   "dependencies": {
     "@clerk/express": "^1.7.29",
