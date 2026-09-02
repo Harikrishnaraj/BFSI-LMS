@@ -37,6 +37,29 @@ export const useAdminApi = () => {
     deactivateUser: (id: string) =>
       call<AdminUser>(`/api/admin/users/${id}/deactivate`, { method: 'POST' }),
 
+    /**
+     * Reports are behind the same Bearer auth as everything else, so they
+     * cannot be fetched by pointing the browser at the URL — window.open sends
+     * no Authorization header and the endpoint answers 401. Pull the bytes with
+     * the token, then hand the browser a blob to save.
+     */
+    downloadReport: async (downloadUrl: string, filename: string) => {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? ''}${downloadUrl}`, {
+        headers: { authorization: `Bearer ${await getToken()}` },
+      });
+      if (!res.ok) throw new Error(`Download failed (${res.status})`);
+
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    },
+
     listAuditLogs: (params: Record<string, string | number | undefined>) =>
       call<Paginated<AuditLogEntry>>(`/api/admin/audit-logs?${toQuery(params)}`),
     exportAuditLogs: (body: Record<string, unknown>) =>

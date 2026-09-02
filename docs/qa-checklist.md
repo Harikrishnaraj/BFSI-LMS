@@ -1,14 +1,14 @@
 # QA checklist
 
 What has and hasn't been proven, and the order worth testing in. Current as of
-the browser QA pass on 1 September; everything described here is merged to
-`main`.
+the browser QA passes on 1 and 2 September; everything described here is merged
+to `main`.
 
 The short version: the API logic is well covered by tests, and the **integration
-seams are where the bugs have actually been** — token claims, CORS, data shapes
-between API and UI, and anything only a browser exercises. Six real bugs have
-come out of this checklist so far, none of which the test suite could have
-caught.
+seams are where the bugs have actually been** — token claims, CORS, auth headers
+on downloads, data shapes between API and UI, and anything only a browser
+exercises. Eight real bugs have come out of this checklist so far, and the test
+suite was green through every one of them.
 
 ## Local environment
 
@@ -97,8 +97,9 @@ learner.
 
 ### 3. The dashboards in a browser — admin and learner DONE, instructor blocked
 
-The first browser pass (1 September) found **four** bugs that 54 passing tests, a
-clean typecheck and a successful build had all missed. Details in PRs #8 and #9.
+Two browser passes so far (1 and 2 September) have found **six** bugs between
+them, none of which 54 passing tests, a clean typecheck and a successful build
+could catch. Details in PRs #8, #9 and #11.
 
 Signing in without a password: `npm run signin:link --workspace backend -- admin`
 mints a 10-minute Clerk ticket link. Sign out first — a ticket is refused while
@@ -106,15 +107,24 @@ a session exists.
 
 - [x] Admin: metrics, compliance table, pie chart, user list, live search, audit
       log viewer
-- [ ] Admin: user create/edit modals, deactivate, CSV export **and its download**
-- [ ] **Instructor: blocked** — `/instructor` requires `role === 'instructor'` and
+- [x] Admin: user create (with validation), edit (email locked), deactivate, and
+      the CSV export **including its download** — every one of those mutations
+      also appeared in the audit trail, checked in the viewer afterwards
+- [x] Instructor authoring, tested as an admin: course cards with per-status
+      actions, the publish checklist blocking a contentless draft and going green
+      once a lesson exists, the Add Content modal, and the post-publish lock
+      removing the reorder and delete controls
+- [ ] **`/instructor` itself: blocked** — it requires `role === 'instructor'` and
       no such account exists (kesdee is admin, gmail is learner). Make a third
-      account, or flip one temporarily. `/instructor/courses` and the course
-      editor accept admins, so those can be tested without one.
+      account, or flip one temporarily.
 - [x] Learner: dashboard, browse, enrol, learn view, lesson completion,
       sequential unlock
-- [ ] Learner: certificates page (nothing has ever issued a certificate)
-- [ ] Loading skeletons and error states — pull the backend down mid-session
+- [x] Learner: certificates page — all three states (active, expiring soon,
+      expired) and the filter tabs, using certificates inserted by hand, since
+      nothing issues them yet. Download is correctly disabled.
+- [x] Loading skeletons and error states — with the backend stopped mid-session
+      the shell still renders, metric cards fall back to placeholders, a red
+      banner offers Retry, and Retry recovers once the API is back
 - [x] Dark mode — was entirely broken, now works via OS setting
 - [x] Mobile widths — no navigation existed at all below `md`; there is now
 
@@ -131,6 +141,12 @@ Fixed during that pass:
    behind it.
 4. **The dark palette never shipped.** Tailwind drops class rules in `@layer base`
    when the class never appears in content, and no toggle exists.
+5. **Course descriptions were title-cased.** A `capitalize` class meant for the
+   difficulty enum was applied to every field in the course detail list.
+6. **Report downloads never worked.** The endpoint requires a Bearer token, and
+   the UI opened it with `window.open`, which sends no Authorization header — so
+   the report generated and then 401'd on retrieval. It now fetches with the
+   token and saves the blob.
 
 Known and unfixed:
 
@@ -138,6 +154,9 @@ Known and unfixed:
       `/login?__clerk_ticket=…` says "You're already signed in" with no way to
       switch account
 - [ ] "1 users" in user management when a filter matches exactly one
+- [ ] Deactivation uses a native `window.confirm` rather than the styled dialog
+      used everywhere else
+- [ ] Error copy surfaces the raw browser message ("Failed to fetch") to users
 
 ### 4. SCORM end to end — DONE for a synthetic package
 

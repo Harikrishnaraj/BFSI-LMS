@@ -67,7 +67,9 @@ export function ComplianceReportGenerator() {
   });
 
   const download = (report: GeneratedReport) =>
-    window.open((process.env.NEXT_PUBLIC_API_URL ?? '') + report.downloadUrl, '_blank');
+    api
+      .downloadReport(report.downloadUrl, `${report.type}-${report.reportId}.csv`)
+      .catch((err: Error) => toast.error('Download failed', { description: err.message }));
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
