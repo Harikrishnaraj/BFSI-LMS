@@ -2,7 +2,7 @@
 
 import { useAuth } from '@clerk/nextjs';
 import { useCallback } from 'react';
-import { apiFetch } from './api';
+import { apiFetch, NETWORK_ERROR } from './api';
 import type {
   AdminUser,
   AuditLogEntry,
@@ -44,10 +44,15 @@ export const useAdminApi = () => {
      * the token, then hand the browser a blob to save.
      */
     downloadReport: async (downloadUrl: string, filename: string) => {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? ''}${downloadUrl}`, {
-        headers: { authorization: `Bearer ${await getToken()}` },
-      });
-      if (!res.ok) throw new Error(`Download failed (${res.status})`);
+      let res: Response;
+      try {
+        res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? ''}${downloadUrl}`, {
+          headers: { authorization: `Bearer ${await getToken()}` },
+        });
+      } catch {
+        throw new Error(NETWORK_ERROR);
+      }
+      if (!res.ok) throw new Error(`The report could not be retrieved (${res.status}).`);
 
       const blob = await res.blob();
       const objectUrl = URL.createObjectURL(blob);

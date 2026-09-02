@@ -13,6 +13,9 @@ export class ApiClientError extends Error {
   }
 }
 
+export const NETWORK_ERROR =
+  'Could not reach the server. Check your connection and try again.';
+
 /**
  * Thin fetch wrapper — no axios needed. Pass the Clerk session token from the
  * caller (getToken() in the browser, auth() on the server) rather than reading
@@ -24,14 +27,21 @@ export const apiFetch = async <T>(
 ): Promise<T> => {
   const { token, headers, ...init } = options;
 
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      'content-type': 'application/json',
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-      ...headers,
-    },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      ...init,
+      headers: {
+        'content-type': 'application/json',
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
+    });
+  } catch {
+    // fetch only rejects when the request never got an answer — offline, DNS,
+    // CORS, server down. Its message ("Failed to fetch") is not for users.
+    throw new ApiClientError(0, NETWORK_ERROR);
+  }
 
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as Partial<ApiError>;

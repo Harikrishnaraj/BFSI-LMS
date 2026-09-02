@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { AuditLogTable } from './AuditLogTable';
 import { AuditLogDetail } from './AuditLogDetail';
 import { useAdminApi } from '@/lib/admin-api';
+import { plural } from '@/lib/utils';
 import type { AuditLogEntry } from '@/types/admin';
 
 const PAGE_SIZE = 50;
@@ -91,7 +92,10 @@ export function AuditLogViewer() {
   return (
     <>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <PageHeader title="Audit Logs" description={`${total} entries · refreshes every 30s`} />
+        <PageHeader
+          title="Audit Logs"
+          description={`${plural(total, 'entry', 'entries')} · refreshes every 30s`}
+        />
         <Button variant="outline" onClick={() => exportCsv.mutate()} disabled={exportCsv.isPending}>
           {exportCsv.isPending ? 'Generating…' : 'Export to CSV'}
         </Button>
