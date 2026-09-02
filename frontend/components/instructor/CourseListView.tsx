@@ -32,7 +32,7 @@ export function CourseListView() {
 
   const courses = useQuery({
     queryKey: ['courses', { status: tab }],
-    queryFn: () => api.list({ status: tab || undefined, limit: 50 }),
+    queryFn: () => api.list({ status: tab || undefined, limit: 50, mine: 'true' }),
     placeholderData: (prev) => prev,
   });
 

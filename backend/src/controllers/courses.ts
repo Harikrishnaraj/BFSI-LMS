@@ -46,16 +46,25 @@ const visibilityFilter = async (
 
 export const listCourses: RequestHandler = async (req, res) => {
   const { page, pageSize, skip } = parsePage(req.query as Record<string, unknown>);
-  const { category, status, search } = req.query as Record<string, string | undefined>;
+  const { category, status, search, mine } = req.query as Record<string, string | undefined>;
 
   if (status && !isStatus(status)) throw fail(400, `Unknown status: ${status}`);
 
   const role = req.user?.role ?? 'learner';
   const visibility = await visibilityFilter(role, req.user?.dbId);
 
+  /*
+   * ?mine=true narrows to courses the caller owns. The instructor dashboard
+   * needs it: visibility alone also returns everyone's published courses, so a
+   * list titled "My Courses" was offering Edit and Archive on courses the
+   * viewer does not own and the API refuses with 403.
+   */
+  const ownedOnly = mine === 'true' && req.user?.dbId;
+
   const where: Prisma.CourseWhereInput = {
     AND: [
       visibility,
+      ...(ownedOnly ? [{ ownerId: req.user!.dbId! }] : []),
       ...(category ? [{ category: { equals: category, mode: 'insensitive' as const } }] : []),
       ...(isStatus(status) ? [{ status }] : []),
       ...(search
@@ -72,7 +81,7 @@ export const listCourses: RequestHandler = async (req, res) => {
   };
 
   // Cache key includes the viewer's role and id: visibility differs per viewer.
-  const key = cacheKey({ role, dbId: req.user?.dbId, page, pageSize, category, status, search });
+  const key = cacheKey({ role, dbId: req.user?.dbId, page, pageSize, category, status, search, mine: Boolean(ownedOnly) });
   const cached = await readList<Paginated<unknown>>(key);
   if (cached) return void res.json(cached);
 

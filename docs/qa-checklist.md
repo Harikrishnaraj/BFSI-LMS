@@ -7,7 +7,7 @@ to `main`.
 The short version: the API logic is well covered by tests, and the **integration
 seams are where the bugs have actually been** — token claims, CORS, auth headers
 on downloads, data shapes between API and UI, and anything only a browser
-exercises. Eight real bugs have come out of this checklist so far, and the test
+exercises. Nine real bugs have come out of this checklist so far, and the test
 suite was green through every one of them.
 
 ## Local environment
@@ -92,8 +92,9 @@ learner.
 - [x] Admin endpoints return data, not 403, for an admin session
 - [x] A learner session gets **403** from `/api/admin/*`
 - [x] A learner gets **404** (not 403) for a draft course they cannot see
-- [ ] An instructor can only edit their own courses — needs a second instructor
-      account to test properly
+- [x] An instructor can only edit their own courses — confirmed by calling
+      DELETE on another instructor's course with a real token: 403. The UI used
+      to offer that action; it no longer lists those courses.
 
 ### 3. The dashboards in a browser — admin and learner DONE, instructor blocked
 
@@ -114,9 +115,11 @@ a session exists.
       actions, the publish checklist blocking a contentless draft and going green
       once a lesson exists, the Add Content modal, and the post-publish lock
       removing the reorder and delete controls
-- [ ] **`/instructor` itself: blocked** — it requires `role === 'instructor'` and
-      no such account exists (kesdee is admin, gmail is learner). Make a third
-      account, or flip one temporarily.
+- [x] `/instructor` dashboard — tested 2 September with a real instructor
+      account. Signing up as Instructor promoted the role and created the users
+      row on first load, routing landed on `/instructor`, and creating a course
+      moved the metric and listed it with the right actions. Found the "My
+      Courses" bug below.
 - [x] Learner: dashboard, browse, enrol, learn view, lesson completion,
       sequential unlock
 - [x] Learner: certificates page — all three states (active, expiring soon,
@@ -147,6 +150,10 @@ Fixed during that pass:
    the UI opened it with `window.open`, which sends no Authorization header — so
    the report generated and then 401'd on retrieval. It now fetches with the
    token and saves the blob.
+7. **"My Courses" listed courses the instructor did not own.** The metric said 0
+   while the table showed four, because the plain course list also returns every
+   published course. Edit and Archive were offered on them, and the API refused
+   with 403 — correctly. The lists now pass `?mine=true`.
 
 Known and unfixed:
 

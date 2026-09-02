@@ -37,7 +37,9 @@ export function InstructorDashboard({ name }: { name: string }) {
 
   const courses = useQuery({
     queryKey: ['courses', 'mine'],
-    queryFn: () => api.list({ limit: 50 }),
+    // Own courses only: the plain list also returns everyone's published
+    // courses, which this table then offered Edit and Archive on.
+    queryFn: () => api.list({ limit: 50, mine: 'true' }),
   });
 
   const create = useMutation({
