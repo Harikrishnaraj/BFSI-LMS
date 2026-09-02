@@ -69,10 +69,14 @@ export function AuditLogViewer() {
         format: 'csv',
       }),
     onSuccess: (report) => {
-      const url = `${process.env.NEXT_PUBLIC_API_URL ?? ''}${report.downloadUrl}`;
       toast.success(`Report ready (${report.rows} rows)`, {
-        description: 'Opens in a new tab.',
-        action: { label: 'Download', onClick: () => window.open(url, '_blank') },
+        action: {
+          label: 'Download',
+          onClick: () =>
+            api
+              .downloadReport(report.downloadUrl, `audit-log-${report.reportId}.csv`)
+              .catch((err: Error) => toast.error('Download failed', { description: err.message })),
+        },
         duration: 15000,
       });
     },
