@@ -1,8 +1,8 @@
 # QA checklist
 
 What has and hasn't been proven, and the order worth testing in. Current as of
-the browser QA passes on 1 and 2 September; everything described here is merged
-to `main`.
+the browser QA passes on 1, 2 and 3 September; everything described here is
+merged to `main`.
 
 The short version: the API logic is well covered by tests, and the **integration
 seams are where the bugs have actually been** — token claims, CORS, auth headers
@@ -96,15 +96,17 @@ learner.
       DELETE on another instructor's course with a real token: 403. The UI used
       to offer that action; it no longer lists those courses.
 
-### 3. The dashboards in a browser — admin and learner DONE, instructor blocked
+### 3. The dashboards in a browser — DONE for all three roles
 
-Two browser passes so far (1 and 2 September) have found **six** bugs between
-them, none of which 54 passing tests, a clean typecheck and a successful build
-could catch. Details in PRs #8, #9 and #11.
+Three browser passes so far (1, 2 and 3 September). The first two found
+**six** bugs between them, none of which 54 passing tests, a clean typecheck and
+a successful build could catch; the third confirmed the four fixes in PR #14.
+Details in PRs #8, #9, #11 and #14.
 
 Signing in without a password: `npm run signin:link --workspace backend -- admin`
-mints a 10-minute Clerk ticket link. Sign out first — a ticket is refused while
-a session exists.
+mints a 10-minute Clerk ticket link. Clerk still refuses a ticket while a
+session is live, but `/login` now offers to sign out and use the link, so you no
+longer have to sign out first.
 
 - [x] Admin: metrics, compliance table, pie chart, user list, live search, audit
       log viewer
@@ -155,8 +157,7 @@ Fixed during that pass:
    published course. Edit and Archive were offered on them, and the API refused
    with 403 — correctly. The lists now pass `?mine=true`.
 
-Fixed since, from code only — **none of these four has been re-tested in a
-browser yet**:
+Fixed and confirmed in the browser on 3 September (PR #14):
 
 8. **An invitation link dead-ended when someone was already signed in.** Clerk
    refuses a ticket exchange while a session is live, and `/login` had no way
@@ -176,15 +177,19 @@ browser yet**:
     toasts at once. `downloadReport` does its own `fetch`, so it got the same
     treatment.
 
-Re-test these in the next browser pass:
+Proved in that pass:
 
-- [ ] Deactivate a user — styled dialog appears, Cancel is a no-op, Confirm
+- [x] Deactivate a user — styled dialog appears, Cancel is a no-op, Confirm
       deactivates and the dialog closes
-- [ ] Filter user management down to exactly one match — reads "1 user"
-- [ ] Stop the backend, then trigger a mutation — the toast says "Could not
+- [x] Filter user management down to exactly one match — reads "1 user"
+- [x] Stop the backend, then trigger a mutation — the toast says "Could not
       reach the server", not "Failed to fetch"
-- [ ] Follow a `signin:link` ticket while already signed in — the switch-account
+- [x] Follow a `signin:link` ticket while already signed in — the switch-account
       button signs out and completes the sign-in
+
+Nothing is left open from the browser passes. The remaining QA surface is
+sections 4 to 6, all of which need something the repo does not have: a real
+authored SCORM package, a webhook tunnel, or a long browser session.
 
 ### 4. SCORM end to end — DONE for a synthetic package
 
