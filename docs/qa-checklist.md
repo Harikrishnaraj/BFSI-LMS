@@ -155,15 +155,36 @@ Fixed during that pass:
    published course. Edit and Archive were offered on them, and the API refused
    with 403 — correctly. The lists now pass `?mine=true`.
 
-Known and unfixed:
+Fixed since, from code only — **none of these four has been re-tested in a
+browser yet**:
 
-- [ ] An invitation link dead-ends when someone is already signed in:
-      `/login?__clerk_ticket=…` says "You're already signed in" with no way to
-      switch account
-- [ ] "1 users" in user management when a filter matches exactly one
-- [ ] Deactivation uses a native `window.confirm` rather than the styled dialog
-      used everywhere else
-- [ ] Error copy surfaces the raw browser message ("Failed to fetch") to users
+8. **An invitation link dead-ended when someone was already signed in.** Clerk
+   refuses a ticket exchange while a session is live, and `/login` had no way
+   out of that. It now offers "Sign out and use this link", which signs out and
+   reloads with the ticket still in the URL so the exchange runs against a clean
+   session.
+9. **"1 users".** A `plural()` helper in `frontend/lib/utils.ts`, applied at all
+   five count strings that had the bug — users, audit entries, courses, content
+   items and lessons.
+10. **Deactivation used a native `window.confirm`.** `ArchiveCourseModal` was
+    generalised into `components/common/ConfirmDialog`; archive and deactivate
+    now share it, so there is one styled confirmation and no native dialog left.
+11. **"Failed to fetch" reached users.** `fetch` rejects only when a request
+    never got an answer — offline, DNS, CORS, server down — and that raw
+    `TypeError` message was going straight into the toast. `apiFetch` now
+    converts it to "Could not reach the server…", which fixes all ~20 error
+    toasts at once. `downloadReport` does its own `fetch`, so it got the same
+    treatment.
+
+Re-test these in the next browser pass:
+
+- [ ] Deactivate a user — styled dialog appears, Cancel is a no-op, Confirm
+      deactivates and the dialog closes
+- [ ] Filter user management down to exactly one match — reads "1 user"
+- [ ] Stop the backend, then trigger a mutation — the toast says "Could not
+      reach the server", not "Failed to fetch"
+- [ ] Follow a `signin:link` ticket while already signed in — the switch-account
+      button signs out and completes the sign-in
 
 ### 4. SCORM end to end — DONE for a synthetic package
 

@@ -12,7 +12,7 @@ import { StatusBadge } from './StatusBadge';
 import { CourseForm, type CourseFormValues } from './CourseForm';
 import { useCourseLifecycle } from './CourseActions';
 import { useCourseApi } from '@/lib/course-api';
-import { cn } from '@/lib/utils';
+import { cn, plural } from '@/lib/utils';
 import type { CourseStatus, CourseSummary } from '@/types/admin';
 
 const TABS: { value: '' | CourseStatus; label: string }[] = [
@@ -52,7 +52,7 @@ export function CourseListView() {
   return (
     <>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <PageHeader title="My Courses" description={`${courses.data?.total ?? 0} courses`} />
+        <PageHeader title="My Courses" description={plural(courses.data?.total ?? 0, 'course')} />
         <Button onClick={() => setCreating(true)}>Create New Course</Button>
       </div>
 
@@ -104,7 +104,7 @@ export function CourseListView() {
                 <div className="space-y-1 text-sm text-muted-foreground">
                   <p>{course.category ?? 'Uncategorised'}</p>
                   <p>
-                    {course._count.enrollments} enrolled · {course._count.content} items
+                    {course._count.enrollments} enrolled · {plural(course._count.content, 'item')}
                   </p>
                   <p>Modified {new Date(course.updatedAt).toLocaleDateString()}</p>
                 </div>

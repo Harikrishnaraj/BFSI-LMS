@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { CoursePlayer } from './CoursePlayer';
 import { useTimeTracker } from './useTimeTracker';
 import { useLearnerApi } from '@/lib/learner-api';
-import { cn } from '@/lib/utils';
+import { cn, plural } from '@/lib/utils';
 
 export function LearnView({ courseId }: { courseId: string }) {
   const api = useLearnerApi();
@@ -105,7 +105,7 @@ export function LearnView({ courseId }: { courseId: string }) {
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
             {percent}% complete · {progress.data?.lessons_completed ?? 0} of{' '}
-            {progress.data?.total_lessons ?? items.length} lessons
+            {plural(progress.data?.total_lessons ?? items.length, 'lesson')}
           </p>
         </div>
 

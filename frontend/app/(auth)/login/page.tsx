@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useSignIn } from '@clerk/nextjs';
+import { useAuth, useSignIn } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,7 @@ export default function LoginPage() {
 
 function LoginForm() {
   const { isLoaded, signIn, setActive } = useSignIn();
+  const { isLoaded: authLoaded, isSignedIn, signOut } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
@@ -33,12 +34,15 @@ function LoginForm() {
    * invitation or a sign-in link. Exchanging it signs them in without a
    * password; without this the link lands on an ordinary login form and the
    * ticket is silently ignored.
+   *
+   * Clerk refuses the exchange while another session is live, so when one is
+   * we offer the way out instead of burning the ticket on a certain failure.
    */
   const ticket = searchParams.get('__clerk_ticket');
   const ticketUsed = useRef(false);
 
   useEffect(() => {
-    if (!isLoaded || !ticket || ticketUsed.current) return;
+    if (!isLoaded || !authLoaded || isSignedIn || !ticket || ticketUsed.current) return;
     ticketUsed.current = true;
 
     (async () => {
@@ -57,7 +61,7 @@ function LoginForm() {
         setPending(false);
       }
     })();
-  }, [isLoaded, ticket, signIn, setActive, router]);
+  }, [isLoaded, authLoaded, isSignedIn, ticket, signIn, setActive, router]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,6 +84,32 @@ function LoginForm() {
       setPending(false);
     }
   };
+
+  if (ticket && authLoaded && isSignedIn) {
+    return (
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>You are already signed in</CardTitle>
+          <CardDescription>
+            This sign-in link belongs to a different account. Sign out to use it.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {/* Reload with the ticket still in the URL, so the exchange above
+              runs again against a clean session. */}
+          <Button
+            className="w-full"
+            onClick={() => signOut({ redirectUrl: window.location.href })}
+          >
+            Sign out and use this link
+          </Button>
+          <Button variant="outline" className="w-full" onClick={() => router.push('/dashboard')}>
+            Stay signed in
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full max-w-md">

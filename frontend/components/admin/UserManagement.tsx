@@ -7,10 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/common/PageHeader';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { UserTable } from './UserTable';
 import { UserFormModal, type UserFormValues } from './UserFormModal';
 import { CreateUserForm } from './CreateUserForm';
 import { useAdminApi } from '@/lib/admin-api';
+import { plural } from '@/lib/utils';
 import { ROLES, type Role } from '@/types';
 import type { AdminUser } from '@/types/admin';
 
@@ -28,6 +30,7 @@ export function UserManagement() {
 
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<AdminUser | null>(null);
+  const [deactivating, setDeactivating] = useState<AdminUser | null>(null);
 
   const filters = {
     page,
@@ -70,22 +73,22 @@ export function UserManagement() {
         : api.updateUser(user.id, { isActive: true }),
     onSuccess: (user) => {
       invalidate();
+      setDeactivating(null);
       toast.success(user.isActive ? `Activated ${user.email}` : `Deactivated ${user.email}`);
     },
     onError: (err: Error) => toast.error('Could not change status', { description: err.message }),
   });
 
-  const onToggleActive = (user: AdminUser) => {
-    if (user.isActive && !window.confirm(`Deactivate ${user.email}? They will lose access.`)) return;
-    toggleActive.mutate(user);
-  };
+  // Deactivation is the destructive half, so only it asks first.
+  const onToggleActive = (user: AdminUser) =>
+    user.isActive ? setDeactivating(user) : toggleActive.mutate(user);
 
   const total = users.data?.total ?? 0;
 
   return (
     <>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <PageHeader title="User Management" description={`${total} users`} />
+        <PageHeader title="User Management" description={plural(total, 'user')} />
         <Button onClick={() => setCreating(true)}>Create New User</Button>
       </div>
 
@@ -170,6 +173,18 @@ export function UserManagement() {
       />
 
       <CreateUserForm open={creating} onClose={() => setCreating(false)} />
+
+      <ConfirmDialog
+        open={deactivating !== null}
+        title="Deactivate user"
+        description={`Deactivate ${deactivating?.email ?? 'this user'}?`}
+        detail="They lose access immediately. You can reactivate them from this table later."
+        confirmLabel="Deactivate"
+        pendingLabel="Deactivating…"
+        submitting={toggleActive.isPending}
+        onClose={() => setDeactivating(null)}
+        onConfirm={() => deactivating && toggleActive.mutate(deactivating)}
+      />
 
       <UserFormModal
         open={editing !== null}

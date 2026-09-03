@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { PublishCourseModal } from './PublishCourseModal';
-import { ArchiveCourseModal } from './ArchiveCourseModal';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { useCourseApi } from '@/lib/course-api';
 import type { CourseSummary } from '@/types/admin';
 
@@ -53,9 +53,15 @@ export const useCourseLifecycle = () => {
         onClose={() => setPublishing(null)}
         onConfirm={() => publishing && publish.mutate(publishing.id)}
       />
-      <ArchiveCourseModal
+      <ConfirmDialog
         open={archiving !== null}
-        title={archiving?.title}
+        title="Archive course"
+        description={`Are you sure you want to archive ${
+          archiving?.title ? `“${archiving.title}”` : 'this course'
+        }?`}
+        detail="Enrolled students will still have access, but new enrollments will be blocked."
+        confirmLabel="Archive"
+        pendingLabel="Archiving…"
         submitting={archive.isPending}
         onClose={() => setArchiving(null)}
         onConfirm={() => archiving && archive.mutate(archiving.id)}
