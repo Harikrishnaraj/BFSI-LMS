@@ -3,16 +3,18 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useSignUp } from '@clerk/nextjs';
+import { useAuth, useSignUp } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { AlreadySignedIn } from '@/components/common/AlreadySignedIn';
 import { clerkMessage } from '@/lib/clerk-errors';
 import { ROLES, type Role } from '@/types';
 
 export default function SignupPage() {
   const { isLoaded, signUp, setActive } = useSignUp();
+  const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const router = useRouter();
 
   const [name, setName] = useState('');
@@ -71,6 +73,15 @@ export default function SignupPage() {
       setPending(false);
     }
   };
+
+  if (authLoaded && isSignedIn) {
+    return (
+      <AlreadySignedIn
+        description="Creating a new account means signing out of this one first."
+        signOutLabel="Sign out and create an account"
+      />
+    );
+  }
 
   return (
     <Card className="w-full max-w-md">

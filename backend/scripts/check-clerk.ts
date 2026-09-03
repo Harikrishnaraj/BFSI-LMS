@@ -124,7 +124,10 @@ async function main() {
       'Without it every session falls back to the least-privileged role, learner.\n'
   );
 
-  process.exit(failures > 0 ? 1 : 0);
+  // Setting the code rather than calling process.exit: a hard exit tears the
+  // process down while Clerk's HTTP handles are still open, and libuv asserts
+  // on Windows — which reported a crash after every check had already passed.
+  process.exitCode = failures > 0 ? 1 : 0;
 }
 
 main();
