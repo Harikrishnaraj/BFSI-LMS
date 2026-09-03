@@ -3,15 +3,17 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useSignIn } from '@clerk/nextjs';
+import { useAuth, useSignIn } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { AlreadySignedIn } from '@/components/common/AlreadySignedIn';
 import { clerkMessage } from '@/lib/clerk-errors';
 
 export default function ForgotPasswordPage() {
   const { isLoaded, signIn, setActive } = useSignIn();
+  const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const router = useRouter();
 
   const [email, setEmail] = useState('');
@@ -61,6 +63,15 @@ export default function ForgotPasswordPage() {
       setPending(false);
     }
   };
+
+  if (authLoaded && isSignedIn) {
+    return (
+      <AlreadySignedIn
+        description="Resetting a password means signing out first. If it is this account, you can change the password from your profile instead."
+        signOutLabel="Sign out and reset a password"
+      />
+    );
+  }
 
   return (
     <Card className="w-full max-w-md">

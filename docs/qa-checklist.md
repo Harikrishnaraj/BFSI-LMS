@@ -187,6 +187,24 @@ Proved in that pass:
 - [x] Follow a `signin:link` ticket while already signed in — the switch-account
       button signs out and completes the sign-in
 
+A fourth pass on 3 September then found that fix 8 was **incomplete**, which is
+the entry worth reading twice:
+
+12. **Only one of the four auth flows had been guarded.** Fix 8 gated the
+    `__clerk_ticket` branch, because that is the path the report named. But
+    `signIn.create` is called twice on `/login` — the ticket exchange and the
+    password form — and Clerk refuses either while a session is live. So an
+    already-signed-in visitor typing a password still got "You're already
+    signed in." in red under a form they could not get past, which is the same
+    dead end in a different doorway. `signUp.create` on `/signup` and the reset
+    flow on `/forgot-password` were the same. There is now one
+    `components/common/AlreadySignedIn` card, and the guard sits on the page
+    rather than on either caller, so both `/login` flows are covered at once.
+    All four pages confirmed in the browser.
+
+The lesson generalises: when a report names one path, the fix belongs wherever
+every caller routes through, not at the named path. Grep for the siblings first.
+
 Nothing is left open from the browser passes. The remaining QA surface is
 sections 4 to 6, all of which need something the repo does not have: a real
 authored SCORM package, a webhook tunnel, or a long browser session.
@@ -252,7 +270,13 @@ Don't raise these as defects.
 
 ## Housekeeping
 
-- [ ] Rotate the Clerk secret key — the current one was pasted into a chat
+- [ ] Rotate the Clerk secret key — the current one was pasted into a chat.
+      Not yet done: as of 3 September the key still fingerprints as it did
+      before. It lives in **two** files, `backend/.env` and
+      `frontend/.env.local`; no GitHub Actions secret is set, and CI falls back
+      to a placeholder, so those two files are the whole job. Confirm with
+      `npm run check:clerk --workspace backend`, which prints a fingerprint and
+      never a secret.
 - [x] Merge PR #6 (Redis cache tests) and PR #7 (Clerk checker and docs)
 - [ ] Decide on `password_hash`: it is `NOT NULL` with a `clerk-managed`
       sentinel for Clerk users. Nullable is cleaner if local password login is

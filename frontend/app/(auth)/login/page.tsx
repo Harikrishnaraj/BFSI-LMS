@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { AlreadySignedIn } from '@/components/common/AlreadySignedIn';
 import { clerkMessage } from '@/lib/clerk-errors';
 
 export default function LoginPage() {
@@ -21,7 +22,7 @@ export default function LoginPage() {
 
 function LoginForm() {
   const { isLoaded, signIn, setActive } = useSignIn();
-  const { isLoaded: authLoaded, isSignedIn, signOut } = useAuth();
+  const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
@@ -85,29 +86,21 @@ function LoginForm() {
     }
   };
 
-  if (ticket && authLoaded && isSignedIn) {
+  /*
+   * Both flows on this page — the ticket exchange above and the password form
+   * below — call signIn.create, which Clerk refuses while a session is live.
+   * Guarding the page rather than either caller covers both.
+   */
+  if (authLoaded && isSignedIn) {
     return (
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>You are already signed in</CardTitle>
-          <CardDescription>
-            This sign-in link belongs to a different account. Sign out to use it.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {/* Reload with the ticket still in the URL, so the exchange above
-              runs again against a clean session. */}
-          <Button
-            className="w-full"
-            onClick={() => signOut({ redirectUrl: window.location.href })}
-          >
-            Sign out and use this link
-          </Button>
-          <Button variant="outline" className="w-full" onClick={() => router.push('/dashboard')}>
-            Stay signed in
-          </Button>
-        </CardContent>
-      </Card>
+      <AlreadySignedIn
+        description={
+          ticket
+            ? 'This sign-in link belongs to a different account. Sign out to use it.'
+            : 'Signing in as someone else means signing out of this account first.'
+        }
+        signOutLabel={ticket ? 'Sign out and use this link' : 'Sign out and sign in as someone else'}
+      />
     );
   }
 
