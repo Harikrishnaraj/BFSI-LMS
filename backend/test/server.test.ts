@@ -56,6 +56,24 @@ test('errorHandler hides internals on 500 but keeps 4xx messages', () => {
   assert.deepEqual(clientErr.body, { error: 'bad input', requestId: 'r2' });
 });
 
+test('a malformed id is a 404, and the prisma message never leaks', () => {
+  const res: any = {
+    code: 0,
+    body: null,
+    status(c: number) { this.code = c; return this; },
+    json(b: unknown) { this.body = b; return this; },
+  };
+  // What Prisma throws when a non-UUID string reaches a uuid column.
+  const p2023 = Object.assign(
+    new Error('Invalid `prisma.course.findUnique()` invocation in C:\\...\\courses.ts:105'),
+    { code: 'P2023', meta: { modelName: 'Course', message: 'Error creating UUID' } }
+  );
+
+  errorHandler(p2023, { requestId: 'r3' } as any, res, () => {});
+  assert.equal(res.code, 404);
+  assert.deepEqual(res.body, { error: 'Not found', requestId: 'r3' });
+});
+
 test('clerk webhook rejects an unsigned payload without touching the db', async () => {
   const res = await fetch(`${base}/api/webhooks/clerk`, {
     method: 'POST',

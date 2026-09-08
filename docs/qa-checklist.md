@@ -1,14 +1,15 @@
 # QA checklist
 
 What has and hasn't been proven, and the order worth testing in. Current as of
-the browser QA passes on 1, 2 and 3 September; everything described here is
+the QA passes on 1, 2, 3 and 8 September; everything described here is
 merged to `main`.
 
 The short version: the API logic is well covered by tests, and the **integration
 seams are where the bugs have actually been** — token claims, CORS, auth headers
-on downloads, data shapes between API and UI, and anything only a browser
-exercises. Nine real bugs have come out of this checklist so far, and the test
-suite was green through every one of them.
+on downloads, data shapes between API and UI, error shapes on the paths nobody
+walks deliberately, and anything only a browser exercises. Fifteen real bugs
+have come out of this checklist so far, and the test suite was green through
+every one of them.
 
 ## Local environment
 
@@ -205,9 +206,53 @@ the entry worth reading twice:
 The lesson generalises: when a report names one path, the fix belongs wherever
 every caller routes through, not at the named path. Grep for the siblings first.
 
+A fifth pass on 8 September swept for 404s specifically — every internal link
+against the route manifest, every frontend API path against the Express router,
+then 94 live HTTP probes against both running servers. It found three more:
+
+13. **A dead "System Settings" button on the admin dashboard.** It linked to
+    `/admin/settings`, which has never existed — there is no settings feature
+    and no sidebar entry for one. Worse than a normal dead link, because Next
+    prefetches `<Link>` targets, so every admin dashboard load fired a 404 for
+    it before anyone clicked. The button is gone.
+
+14. **No `not-found.tsx`.** Any 404 — that button, a stale bookmark, a deleted
+    course — served Next's own default: a bare black page, no header, no
+    sidebar, no way back but the browser's back arrow. There is now a branded
+    404 at `app/not-found.tsx` offering the role's dashboard and home.
+
+15. **24 of the 26 `:id` API routes answered 500 to a malformed id.** Prisma
+    raises `P2023` when a non-UUID string reaches a uuid column, and
+    `errorHandler` maps anything without a `.status` to 500 — so
+    `/api/courses/not-a-uuid` was an "Internal server error", and the UI said
+    so: *"Could not load this course. Internal server error"* for what was only
+    a bad URL. The raw `P2023` message also carries the query text and absolute
+    source paths, which the 500 branch would have suppressed but a 4xx branch
+    would not. `errorHandler` now maps `P2023` to a plain 404 and drops the
+    message. One guard, 27 call sites that read `req.params`; the alternative
+    was validating an id in each of them. Re-probed: 26 routes, 0 5xx.
+
+That third one is the same lesson as 12, from the other direction — the cheapest
+place to fix an error-shape bug is the shared handler every route already exits
+through.
+
 Nothing is left open from the browser passes. The remaining QA surface is
 sections 4 to 6, all of which need something the repo does not have: a real
 authored SCORM package, a webhook tunnel, or a long browser session.
+
+Proven in the 8 September pass, and not worth re-testing:
+
+- Every path the frontend calls resolves to a real Express route — checked
+  by extracting all 36 `/api/...` strings in `frontend/lib` and matching them
+  against the router. No API 404s, and no verb mismatches.
+- Unknown paths, wrong verbs and nonexistent-but-valid UUIDs all answer a clean
+  404 JSON with a request id, never a 500.
+- Malformed JSON, unknown role/status enums, bad dates, negative and
+  non-numeric time values all answer 400 with a usable message.
+- A quoted `' OR 1=1--` and a `<script>` tag in `?search=` are parameterised
+  away — 200 with zero rows, no error.
+- The four admin pages and both instructor pages load with an empty console and
+  every API call 200 (CORS preflights 204).
 
 ### 4. SCORM end to end — DONE for a synthetic package
 
@@ -244,8 +289,13 @@ Never configured, so only the `/api/auth/me` fallback has run.
 - [ ] Archive a course a learner is enrolled in — they keep access, new
       enrolments blocked
 - [ ] Two admins editing the same user at once
-- [ ] Pagination past the last page
-- [ ] A 200+ item `?limit=` (should clamp to 200)
+- [x] Pagination past the last page — `?page=99999` returns an empty `data`
+      with the real `total`, not an error. `page=0`, `page=-1` and `page=abc`
+      all resolve to page 1.
+- [x] A 200+ item `?limit=` (should clamp to 200) — `parsePage` clamps to 200,
+      confirmed live on users, courses and audit logs. `limit=0` falls back to
+      the default 20 and `limit=-5` clamps up to 1.
+- [x] A malformed id in any `:id` route — 404, not 500. See fix 15 above.
 
 ## Known gaps — missing features, not bugs
 
