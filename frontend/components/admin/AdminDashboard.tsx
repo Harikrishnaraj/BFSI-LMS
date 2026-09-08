@@ -50,9 +50,6 @@ export function AdminDashboard({ name }: { name: string }) {
           <Button asChild size="sm" variant="outline">
             <Link href="/admin/users">Manage Users</Link>
           </Button>
-          <Button asChild size="sm" variant="outline">
-            <Link href="/admin/settings">System Settings</Link>
-          </Button>
         </div>
       </div>
 

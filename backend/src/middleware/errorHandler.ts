@@ -5,6 +5,20 @@ export const notFound: RequestHandler = (req, res) => {
 };
 
 export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
+  /*
+   * Prisma P2023 — a non-UUID string reached a uuid column. Every :id route
+   * takes its id straight from the URL, so this is a caller typing a bad id,
+   * not a server fault: answer 404 like any other id that matches nothing.
+   * The guard belongs here rather than at the 27 call sites that read
+   * req.params, and the raw message is dropped because it carries the query
+   * text and absolute source paths.
+   */
+  if (err?.code === 'P2023') {
+    console.error(`${req.requestId} 404 malformed id`, err.meta?.message ?? '');
+    res.status(404).json({ error: 'Not found', requestId: req.requestId });
+    return;
+  }
+
   // Multer rejects oversized or malformed uploads with its own error class,
   // which carries no status: those are the caller's fault, not a 500.
   const status =
